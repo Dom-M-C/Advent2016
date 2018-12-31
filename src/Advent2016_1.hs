@@ -16,7 +16,7 @@ data Direction = North | East | South | West deriving(Enum, Show)
 data Move = L { steps :: Int } | R { steps :: Int } deriving(Show, Read)
 
 instance Show Position where
-    show p = 
+    show p =
         let
         xpos = x p
         ypos = y p
@@ -34,14 +34,14 @@ writeCoordinates :: [Position] -> [(Longitude, Latitude, Int )]
 writeCoordinates ps = map (\p -> (x p, y p, blocksAway p)) ps
 
 blocksAway :: Position -> Int
-blocksAway p = 
+blocksAway p =
     let abx = abs $ x p
         aby = abs $ y p
     in abx + aby
 
 initialPosition :: Position
-initialPosition = P 0 0 North    
-  
+initialPosition = P 0 0 North
+
 updateFacing :: Direction -> Move -> Direction
 updateFacing North (L _) = West
 updateFacing West R {} = North
@@ -51,13 +51,13 @@ updateFacing d (L _) = pred d
 updateLongLat :: Direction -> Position
 updateLongLat d = case d of
     South -> P 0 (-1) South
-    West -> P (-1) 0 West 
+    West -> P (-1) 0 West
     North -> P 0 1 North
     East -> P 1 0 East
 
 
 move :: Position -> Move -> [Position]
-move p m 
+move p m
     | steps m < 1 = []
     | otherwise =
     let
@@ -67,15 +67,15 @@ move p m
         newPos = p { x = x p + x stepValue
             ,  y = y p + y stepValue
             ,  facing = newDir
-            } 
+            }
     in newPos : move newPos ( steps m (-1) )
-    
+
 getMoves :: String -> [Move]
-getMoves = 
-    let 
+getMoves =
+    let
         cleanString = \str -> removeCommas str
         moveList = \str -> words str
-    in \str -> map parseMove (moveList $ cleanString str) 
+    in \str -> map parseMove (moveList $ cleanString str)
 
 removeCommas :: String -> String
 removeCommas xs = filter (\x -> x /= ',') xs
@@ -87,8 +87,9 @@ parseMove ('R':xs) = R (read xs::Int)
 executeMoves :: [Move] -> Position
 executeMoves moves = foldl move initialPosition moves
 
-gottenMoves = getMoves "R3, L5, R2, L1, L2, R5, L2, R2, L2, L2, L1, R2, L2, R4, R4, R1, L2, L3, R3, L1, R2, L2, L4, R4, R5, L3, R3, L3, L3, R4, R5, L3, R3, L5, L1, L2, R2, L1, R3, R1, L1, R187, L1, R2, R47, L5, L1, L2, R4, R3, L3, R3, R4, R1, R3, L1, L4, L1, R2, L1, R4, R5, L1, R77, L5, L4, R3, L2, R4, R5, R5, L2, L2, R2, R5, L2, R194, R5, L2, R4, L5, L4, L2, R5, L3, L2, L5, R5, R2, L3, R3, R1, L4, R2, L1, R5, L1, R5, L1, L1, R3, L1, R5, R2, R5, R5, L4, L5, L5, L5, R3, L2, L5, L4, R3, R1, R1, R4, L2, L4, R5, R5, R4, L2, L2, R5, R5, L5, L2, R4, R4, L4, R1, L3, R1, L1, L1, L1, L4, R5, R4, L4, L4, R5, R3, L2, L2, R3, R1, R4, L3, R1, L4, R3, L3, L2, R2, R2, R2, L1, L4, R3, R2, R2, L3, R2, L3, L2, R4, L2, R3, L4, R5, R4, R1, R5, R3"
+gottenMoves = getMoves "L2, L3, L3, L4, R1, R2, L3, R3, R3, L1, L3, R2, R3, L3, R4, R3, R3, L1, L4, R4, L2, R5, R1, L5, R1, R3, L5, R2, L2, R2, R1, L1, L3, L3, R4, R5, R4, L1, L189, L2, R2, L5, R5, R45, L3, R4, R77, L1, R1, R194, R2, L5, L3, L2, L1, R5, L3, L3, L5, L5, L5, R2, L1, L2, L3, R2, R5, R4, L2, R3, R5, L2, L2, R3, L3, L2, L1, L3, R5, R4, R3, R2, L1, R2, L5, R4, L5, L4, R4, L2, R5, L3, L2, R4, L1, L2, R2, R3, L2, L5, R1, R1, R3, R4, R1, R2, R4, R5, L3, L5, L3, L3, R5, R4, R1, L3, R1, L3, R3, R3, R3, L1, R3, R4, L5, L3, L1, L5, L4, R4, R1, L4, R3, R3, R5, R4, R3, R3, L1, L2, R1, L4, L4, L3, L4, L3, L5, R2, R4, L2"
 
+firstAnswer = executeMoves gottenMoves
 ---PART TWO
 
 moved = move initialPosition
