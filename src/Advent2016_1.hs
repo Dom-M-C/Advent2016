@@ -13,7 +13,7 @@ data Position = P {
 }
 
 data Direction = North | East | South | West deriving(Enum, Show)
-data Move = L Steps | R Steps deriving(Show, Read)
+data Move = L { steps :: Int } | R { steps :: Int } deriving(Show, Read)
 
 instance Show Position where
     show p = 
@@ -28,6 +28,10 @@ instance Show Position where
             | ypos < 0 = show (abs ypos) ++ " blocks South,"
         blocks = show $ blocksAway p
         in showx ++ showy ++ " and " ++ blocks ++ " blocks away. Currently facing: " ++ show (facing p)
+    showList ps = (\_ -> show $ writeCoordinates ps) -- foldl (\p z -> show (x p, y p) ++ ", " ++ show (x z, y z))  ps
+
+writeCoordinates :: [Position] -> [(Longitude, Latitude, Int )]
+writeCoordinates ps = map (\p -> (x p, y p, blocksAway p)) ps
 
 blocksAway :: Position -> Int
 blocksAway p = 
@@ -44,33 +48,27 @@ updateFacing West R {} = North
 updateFacing d R {} = succ d
 updateFacing d (L _) = pred d
 
-getSteps :: Move -> Steps
-getSteps (L s) = s
-getSteps (R s) = s
+updateLongLat :: Direction -> Position
+updateLongLat d = case d of
+    South -> P 0 (-1) South
+    West -> P (-1) 0 West 
+    North -> P 0 1 North
+    East -> P 1 0 East
 
-updateLongLat :: Direction -> Move -> Position
-updateLongLat d m = case d of
-    South -> P 0 (-s) South
-    West -> P (-s) 0 West 
-    North -> P 0 s North
-    East -> P s 0 East
-    where s = getSteps m
 
-sumPositions :: Position -> Position -> Position    
-sumPositions current new = 
-    let
-        newLat = x current + x new
-        newLong = y current + y new
-        dir = facing new
-    in P newLat newLong dir
-
-move :: Position -> Move -> Position
-move p m = 
+move :: Position -> Move -> [Position]
+move p m 
+    | steps m < 1 = []
+    | otherwise =
     let
         dir = facing p
         newDir = updateFacing dir m
-        newPos = updateLongLat newDir m
-    in sumPositions p newPos
+        stepValue = updateLongLat newDir
+        newPos = p { x = x p + x stepValue
+            ,  y = y p + y stepValue
+            ,  facing = newDir
+            } 
+    in newPos : move newPos ( steps m (-1) )
     
 getMoves :: String -> [Move]
 getMoves = 
@@ -90,4 +88,17 @@ executeMoves :: [Move] -> Position
 executeMoves moves = foldl move initialPosition moves
 
 gottenMoves = getMoves "R3, L5, R2, L1, L2, R5, L2, R2, L2, L2, L1, R2, L2, R4, R4, R1, L2, L3, R3, L1, R2, L2, L4, R4, R5, L3, R3, L3, L3, R4, R5, L3, R3, L5, L1, L2, R2, L1, R3, R1, L1, R187, L1, R2, R47, L5, L1, L2, R4, R3, L3, R3, R4, R1, R3, L1, L4, L1, R2, L1, R4, R5, L1, R77, L5, L4, R3, L2, R4, R5, R5, L2, L2, R2, R5, L2, R194, R5, L2, R4, L5, L4, L2, R5, L3, L2, L5, R5, R2, L3, R3, R1, L4, R2, L1, R5, L1, R5, L1, L1, R3, L1, R5, R2, R5, R5, L4, L5, L5, L5, R3, L2, L5, L4, R3, R1, R1, R4, L2, L4, R5, R5, R4, L2, L2, R5, R5, L5, L2, R4, R4, L4, R1, L3, R1, L1, L1, L1, L4, R5, R4, L4, L4, R5, R3, L2, L2, R3, R1, R4, L3, R1, L4, R3, L3, L2, R2, R2, R2, L1, L4, R3, R2, R2, L3, R2, L3, L2, R4, L2, R3, L4, R5, R4, R1, R5, R3"
+
+---PART TWO
+
+moved = move initialPosition
+
+
+--mapped = \moves -> map (moved) moves
+--summed = \positions -> apply sumPositions positions
+
+apply :: (Position -> Move -> Position) -> Position -> [Move] -> [Position]
+apply f pos (x:[]) = [f pos x]
+apply f pos (x:xs) = (f pos x) : apply f (f pos x) xs
+
 
