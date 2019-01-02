@@ -56,8 +56,16 @@ updateLongLat d = case d of
     East -> P 1 0 East
 
 
-move :: Position -> Move -> [Position]
-move p m
+sumPositions :: Position -> Position -> Position
+sumPositions current new =
+    let
+        newLat = x current + x new
+        newLong = y current + y new
+        dir = facing new
+    in P newLat newLong dir
+
+move :: Position -> Move -> Position
+move p m 
     | steps m < 1 = []
     | otherwise =
     let
