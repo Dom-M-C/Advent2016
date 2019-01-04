@@ -1,4 +1,7 @@
-module Advent2016_2 where 
+module Advent2016_2 
+    (   firstAnswer
+    --,   secondAnswer
+    ) where
 
 newtype KeyPosition = KeyPosition Int deriving(Show, Eq, Ord)
 
