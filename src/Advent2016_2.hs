@@ -90,3 +90,7 @@ getKeys kb (m:ms) = moveButtons kb m : getKeys (moveButtons kb m) ms
 
 firstAnswer = getKeys initialButton moves
 
+data DiamondPosition = D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 | DA | DB | DC | DD deriving(Eq, Show, Ord)
+data DiamondNeighbourgood = N (DiamondPosition, [DiamondPosition])
+    
+--func = N [L]
