@@ -1,4 +1,7 @@
-module Advent2016_1 where
+module Advent2016_1 
+    (   firstAnswer
+    ,   secondAnswer
+    ) where
 
 --https://adventofcode.com/2016/day/1
 
