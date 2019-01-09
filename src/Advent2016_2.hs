@@ -3,32 +3,30 @@ module Advent2016_2
     --,   secondAnswer
     ) where
 
-newtype KeyPosition = KeyPosition Int deriving(Show, Eq, Ord)
+newtype KeyPosition = P Int deriving(Show, Eq, Ord)
 
 instance Bounded KeyPosition where
-    minBound = KeyPosition 0
-    maxBound = KeyPosition 2
+    minBound = P 0
+    maxBound = P 2
 
-instance Num KeyPosition where
-    KeyPosition a + KeyPosition b = KeyPosition (a + b)
-    KeyPosition a * KeyPosition b = KeyPosition (a * b)
-    abs (KeyPosition a) = KeyPosition (abs a)
-    signum (KeyPosition a) = KeyPosition (signum a)
-    fromInteger a = KeyPosition $ fromIntegral a
-    negate (KeyPosition a) = KeyPosition (negate a)
+instance Semigroup KeyPosition where
+    P a <> P b = P (a + b)
+
+instance Monoid KeyPosition where
+    mempty = P 0    
 
 data KeypadButton = K { xpos :: KeyPosition, ypos :: KeyPosition } deriving (Ord, Eq, Bounded)
 
 instance Show KeypadButton where
-    show (K 0 0) = "1"
-    show (K 1 0) = "2"
-    show (K 2 0) = "3"
-    show (K 0 1) = "4"
-    show (K 1 1) = "5"
-    show (K 2 1) = "6"
-    show (K 0 2) = "7"
-    show (K 1 2) = "8"
-    show (K 2 2) = "9"
+    show (K (P 0) (P 0)) = "1"
+    show (K (P 1) (P 0)) = "2"
+    show (K (P 2) (P 0)) = "3"
+    show (K (P 0) (P 1)) = "4"
+    show (K (P 1) (P 1)) = "5"
+    show (K (P 2) (P 1)) = "6"
+    show (K (P 0) (P 2)) = "7"
+    show (K (P 1) (P 2)) = "8"
+    show (K (P 2) (P 2)) = "9"
 
 class KeyMove a where
     up :: a -> a
@@ -39,16 +37,16 @@ class KeyMove a where
 instance KeyMove KeypadButton where
     up k
         | (ypos k) == (minBound :: KeyPosition) = k
-        | otherwise = k { ypos = (ypos k) - 1 }
+        | otherwise = k { ypos = (ypos k) <> (P (-1)) }
     left k
         | (xpos k) == (minBound :: KeyPosition) = k
-        | otherwise = k { xpos = (xpos k) - 1 }
+        | otherwise = k { xpos = (xpos k) <> (P (-1)) }
     down k
         | (ypos k) == (maxBound :: KeyPosition) = k
-        | otherwise = k { ypos = (ypos k) + 1 }
+        | otherwise = k { ypos = (ypos k) <> (P 1) }
     right k
         | (xpos k) == (maxBound :: KeyPosition) = k
-        | otherwise = k { xpos = (xpos k) + 1 }
+        | otherwise = k { xpos = (xpos k) <> (P 1) }
 
 data Move = None | U | L | D | R deriving(Show, Enum, Eq)
 
@@ -63,7 +61,7 @@ instance ParseMove Move where
     readMove 'R' = R
     readMoves str = map readMove str
 
-initialButton = K 1 1 -- "5"  
+initialButton = K (P 1) (P 1) -- "5"  
     
 moveButton :: KeypadButton -> Move -> KeypadButton
 moveButton kb U = up kb
@@ -94,3 +92,4 @@ data DiamondPosition = D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9 | DA | DB | DC
 data DiamondNeighbourgood = N (DiamondPosition, [DiamondPosition])
     
 --func = N [L]
+
