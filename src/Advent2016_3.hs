@@ -3,6 +3,8 @@ module Advent2016_3 where
 import Data.List
 
 firstAnswer = length $ filter validTriangle triangles
+secondAnswer = length $ filter validTriangle columnTriangles
+    where columnTriangles = pivotTriangles triangles
 
 data Triangle a = Triangle a a a deriving Show
 
@@ -45,6 +47,19 @@ inputParts str =
     in tri : inputParts rest
     
 wordedInput = words input
+
+pivotTriangles :: [Triangle Double] -> [Triangle Double]
+pivotTriangles [] = []
+pivotTriangles tris =
+    let
+        firstThreeAndRest = splitAt 3 tris
+    in
+        (pivot3Triangles $ fst firstThreeAndRest) <> (pivotTriangles $ snd firstThreeAndRest)
+
+pivot3Triangles :: [Triangle Double] -> [Triangle Double]
+pivot3Triangles [] = []
+pivot3Triangles ((Triangle x1 x2 x3) : (Triangle y1 y2 y3) : (Triangle z1 z2 z3):_)
+    = [(Triangle x1 y1 z1),(Triangle x2 y2 z2),(Triangle x3 y3 z3)]
 
 input = 
  "   810  679   10 \
