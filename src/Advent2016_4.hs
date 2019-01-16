@@ -76,7 +76,51 @@ instance Monoid Room where
     mempty = Room "" 0 ""    
 
 firstAnswer = mconcat validRooms
-secondAnswer = undefined    
+
+
+newtype NameCipher = NameCipher Char
+
+instance Show NameCipher where
+    show (NameCipher s) = show s
+
+instance Enum NameCipher where
+    fromEnum (NameCipher c) = ((fromEnum c) - 19) `mod` 26
+    toEnum n = NameCipher (toEnum ((n `mod` 26) + 97))
+
+circleSucc (NameCipher 'z') = NameCipher 'a'
+circleSucc nc = succ nc
+    
+circlePred (NameCipher 'a') = NameCipher 'z'
+circlePred nc = pred nc
+
+rotateNameCipher sectorId (NameCipher '-') = NameCipher ' '
+rotateNameCipher sectorId nc = toEnum ((fromEnum nc) + sectorId)
+
+decryptName :: Room -> String
+decryptName (Room name sectorId _) = 
+    let
+        nameCiphers = map (\x -> NameCipher x) name
+        rotatedCiphers = map (\x -> rotateNameCipher sectorId x) nameCiphers
+        toString (NameCipher c) = c
+    in
+        map toString rotatedCiphers 
+
+validRoomNames :: [String]        
+validRoomNames = map decryptName validRooms
+
+decryptedRooms :: [Room]
+decryptedRooms = map (\rm@(Room _ s c) -> (Room (decryptName rm) s c)) validRooms
+
+northPoleRooms :: [String] -> [String]
+northPoleRooms str = filter (\x -> isInfixOf "north" x ) str
+
+northPoleRoom :: [Room] -> [Room]
+northPoleRoom rooms = filter (\(Room name _ _) -> isInfixOf "north" name) rooms
+        
+secondAnswer' [(Room _ sectorId _)] = sectorId
+
+secondAnswer = secondAnswer' (northPoleRoom decryptedRooms)
+
 
 --lookup character
 --does it exist?
