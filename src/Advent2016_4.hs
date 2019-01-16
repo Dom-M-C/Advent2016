@@ -1,4 +1,7 @@
-module Advent2016_4 where 
+module Advent2016_4 
+    (   firstAnswer
+    ,   secondAnswer
+    )where
 
 import Data.List
 import qualified Data.Map as M
@@ -34,22 +37,46 @@ justInt (Just x) = x
 justInt Nothing = 0
 
 
-validRoom :: Room -> Bool
-validRoom = undefined
-
-
-
-parseCharCounts :: Name -> M.Map Char Int -> M.Map Char Int
+parseCharCounts :: EncryptedName -> M.Map Char Int -> M.Map Char Int
 parseCharCounts [] charMap = charMap
+parseCharCounts ('-':cs) charMap = parseCharCounts cs charMap
 parseCharCounts (c:cs) charMap = 
     let
         charVal = M.lookup c charMap
         insertOrUpdate (Just x) = M.insert c (x + 1) charMap
         insertOrUpdate Nothing =  M.insert c 1 charMap
     in
-        parseChars cs (insertOrUpdate charVal)
+        parseCharCounts cs (insertOrUpdate charVal)
 
 
+sortCharCountsAsChecksum :: (Char, Int) -> (Char, Int) -> Ordering
+sortCharCountsAsChecksum (c1, i1) (c2, i2)
+    | i1 == i2 = compare c1 c2
+    | otherwise = (flip compare) i1 i2
+
+nameChecksum :: Room -> [Char]
+nameChecksum = take 5 . fst . unzip . sortedAsChecksum
+
+sortedAsChecksum :: Room -> [(Char, Int)]
+sortedAsChecksum (Room name _ _) = sortBy sortCharCountsAsChecksum (M.toList $ parseCharCounts name M.empty)
+
+validRoom :: Room -> Bool
+validRoom rm@(Room name _ check) = nameChecksum rm == check
+    
+allRooms :: [Room]
+allRooms = map createRoom input
+
+validRooms :: [Room]
+validRooms = filter validRoom allRooms
+
+instance Semigroup Room where
+    (<>) (Room _ sector1 _) (Room _ sector2 _) = Room "" (sector1 + sector2) ""
+
+instance Monoid Room where
+    mempty = Room "" 0 ""    
+
+firstAnswer = mconcat validRooms
+secondAnswer = undefined    
 
 --lookup character
 --does it exist?
