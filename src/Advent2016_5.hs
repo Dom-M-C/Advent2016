@@ -1,6 +1,6 @@
-module Advent2016_5 where 
+module Advent2016_5 where
 
-
+import Data.List
 import Data.Digest.Pure.MD5
 import Data.ByteString.Lazy.Internal
 
@@ -20,6 +20,11 @@ areFirstNcharsZero n str = all(=='0') $ take n str
 areFirstFiveCharsZero :: String -> Bool
 areFirstFiveCharsZero = areFirstNcharsZero 5
 
+areFirstFiveCharsZeroAndSixthInRange :: String -> Bool
+areFirstFiveCharsZeroAndSixthInRange str = areFirstFiveCharsZero str && (isInRange sixthChar)
+    where sixthChar = str !! 5
+          isInRange x = elem x (map (head . show) [0..7])
+
 hashDoor :: Door -> String
 hashDoor (Door doorId (i:is)) = hashDoorWithIndex doorId i
 
@@ -29,26 +34,35 @@ instance Show Door where
 hashDoorWithIndex :: DoorId -> Int -> String
 hashDoorWithIndex doorId i = stringToHashString $ doorId <> (show i)
 
-recurseDoorHashUntilFiveLeadingZeros :: Door -> Door
-recurseDoorHashUntilFiveLeadingZeros d@(Door dId (i:is))
-    | areFirstFiveCharsZero $ hashDoor d = d
-    | otherwise = recurseDoorHashUntilFiveLeadingZeros (Door dId is)
+recurseDoorHashUntil :: (String -> Bool) -> Door -> Door
+recurseDoorHashUntil func d@(Door dId (i:is))
+    | func $ hashDoor d = d
+    | otherwise = recurseDoorHashUntil func (Door dId is)
 
-getDoorPassword :: Door -> [Door]
-getDoorPassword d = 
+recurseDoorHashUntilFiveLeadingZeros = recurseDoorHashUntil areFirstFiveCharsZero
+
+recurseDoorHashUntilFiveLeadingZerosAndSixthInRange = recurseDoorHashUntil areFirstFiveCharsZeroAndSixthInRange
+
+getDoorPassword :: (Door -> Door) -> Door -> [Door]
+getDoorPassword func d =
     let
-        thisDoor = recurseDoorHashUntilFiveLeadingZeros d
+        thisDoor = func d
         nextDoor = thisDoor { indexes = tail $ indexes thisDoor }
-        passwordDoors = thisDoor : getDoorPassword nextDoor
+        passwordDoors = thisDoor : getDoorPassword func nextDoor
     in
         take 8 passwordDoors
 
+regularPassword :: Door -> [Door]
+regularPassword = getDoorPassword recurseDoorHashUntilFiveLeadingZeros
 
+specialPassword :: Door -> [Door]
+specialPassword = getDoorPassword recurseDoorHashUntilFiveLeadingZerosAndSixthInRange
 
 getSixthElem :: [a] -> a
 getSixthElem = (head . drop 5)
 
-getSixSevenPair = undefined
+getSixSevenPair :: [a] -> (a, a)
+getSixSevenPair ls = (ls !! 5, ls !! 6)
 
 
 
@@ -57,4 +71,8 @@ initialDoor = (Door "cxdnnyjw" [0..])
 
 doorPasswordString doors = map (getSixthElem . hashDoor) doors
 
-firstAnswer = doorPasswordString $ getDoorPassword initialDoor 
+firstAnswer = doorPasswordString (regularPassword initialDoor)
+
+doorSortedPassword doors = sort $ map (getSixSevenPair . hashDoor) doors
+
+secondAnswer = doorSortedPassword (specialPassword initialDoor) --boo you need a map to get rid of duplicates
