@@ -1,4 +1,7 @@
-module Advent2016_5 where
+module Advent2016_5 
+    (firstAnswer
+    ,secondAnswer
+    )where
 
 import Data.List
 import qualified Data.Map as Map
@@ -17,8 +20,6 @@ areFirstNcharsZero n str = all(=='0') $ take n str
 
 areFirstFiveCharsZero :: String -> Bool
 areFirstFiveCharsZero = areFirstNcharsZero 5
-
-
 
 hashDoor :: Door -> String
 hashDoor (Door doorId (i:is)) = hashDoorWithIndex doorId i
@@ -48,8 +49,6 @@ getDoorPassword func d =
 regularPassword :: Door -> [Door]
 regularPassword = take 8 . getDoorPassword recurseDoorHashUntilFiveLeadingZeros
 
-
-
 getSixthElem :: [a] -> a
 getSixthElem = (head . drop 5)
 
@@ -60,43 +59,38 @@ getPosAnswerPair = (getSixSevenPair . hashDoor . head )
 
 initialDoor = (Door "cxdnnyjw" [0..])
 
-
 doorPasswordString doors = map (getSixthElem . hashDoor) doors
 
 firstAnswer = doorPasswordString (regularPassword initialDoor)
 
 areFirstFiveCharsZeroAndGetSixSevenPair :: String -> Maybe (Int, Char)
 areFirstFiveCharsZeroAndGetSixSevenPair str
-    | areFirstFiveCharsZero str && (isInRange sixthChar) = Just (sixthChar, str !! 6)
+    | areFirstFiveCharsZero str && isSixthInRange = Just (asInt, str !! 6)
     | otherwise = Nothing
-    where sixthChar = read [(str !! 5)] :: Int
-          isInRange x = elem x [0..7]
+    where sixthChar = str !! 5
+          isInRange x = elem x ['0'..'7']
+          isSixthInRange = isInRange sixthChar
+          asInt = read [sixthChar] :: Int
 
 getValidDoorPair :: Door -> Maybe (Int, Char)
 getValidDoorPair = areFirstFiveCharsZeroAndGetSixSevenPair . hashDoor
 
 --recurseDoorHashUntilFiveLeadingZerosAndSixthInRange :: Door -> Door
-recurseDoorHashUntilFiveLeadingZerosAndSixthInRange = map (\x -> (getValidDoorPair x) /= Nothing)
-    $ getDoorPassword specialPassword initialDoor
-
+recurseDoorHashUntilFiveLeadingZerosAndSixthInRange =
+    let
+        doors = getDoorPassword recurseDoorHashUntilFiveLeadingZeros
+        doorPair = map (\x -> (getValidDoorPair x, x)) (doors initialDoor)
+        pairs = map fst doorPair 
+    in
+        createMap Map.empty pairs
 
 createMap :: Map.Map Int Char -> [Maybe (Int, Char)] -> Map.Map Int Char
-createMap m [Nothing] = m
+createMap m (Nothing:ts) = createMap m ts
 createMap m (Just (i, c):ts)
-    | Map.lookup i m == Nothing = Map.insert i c m
+    | Map.size m == 8 = m
+    | Map.lookup i m == Nothing = createMap (Map.insert i c m) ts
     | otherwise = createMap m ts
 
-specialPassword :: Door -> [Door]
-specialPassword = undefined
+secondAnswer :: [Char]
+secondAnswer = map snd $ Map.toList recurseDoorHashUntilFiveLeadingZerosAndSixthInRange
 
-
-myMap = take 8 . Map.toList $ createMap Map.empty $ [areFirstFiveCharsZeroAndGetSixSevenPair (hashDoor  initialDoor )]
-
-
-
-
-
-
---doorSortedPassword doors = sort $ map (getSixSevenPair . hashDoor) doors
-
-secondAnswer = undefined --doorSortedPassword (specialPassword initialDoor) --boo you need a map to get rid of duplicates
