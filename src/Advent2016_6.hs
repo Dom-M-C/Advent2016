@@ -24,7 +24,7 @@ buildRowMap (c:cs) idx m =
         
 buildColumnMap :: [String] -> Map.Map ColumnIndex ColumnString -> ColumnStrings 
 buildColumnMap [] m = ColumnStrings m
-buildColumnMap (row:rows) m = buildColumnMap rows (buildRowMap row 0 Map.empty)
+buildColumnMap (row:rows) m = buildColumnMap rows (buildRowMap row 0 m)
 
 showColumnStrings :: ColumnStrings -> String
 showColumnStrings (ColumnStrings cmap)
@@ -35,4 +35,25 @@ columnPairToString :: (ColumnIndex, ColumnString) -> String
 columnPairToString (x, y) = "Position " <> (show x) <> ": " <> y <> "\n"
 
 instance Show ColumnStrings where
-    show = showColumnStrings           
+    show = showColumnStrings         
+    
+    
+
+input = 
+    [   "eedadn"
+    ,   "drvtee"
+    ,   "eandsr"
+    ,   "raavrd"
+    ,   "atevrs"
+    ,   "tsrnev"
+    ,   "sdttsa"
+    ,   "rasrtv"
+    ,   "nssdts"
+    ,   "ntnada"
+    ,   "svetve"
+    ,   "tesnvt"
+    ,   "vntsnd"
+    ,   "vrdear"
+    ,   "dvrsen"
+    ,   "enarar"
+    ]
