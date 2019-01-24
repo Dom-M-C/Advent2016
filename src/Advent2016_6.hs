@@ -37,9 +37,40 @@ columnPairToString (x, y) = "Position " <> (show x) <> ": " <> y <> "\n"
 instance Show ColumnStrings where
     show = showColumnStrings         
     
-    
+countChars :: String -> Map.Map Char Int -> Map.Map Char Int
+countChars [] m = m
+countChars (c:cs) m =
+    let
+        lookupChar = Map.lookup c m 
+        insertOrUpdate (Nothing) = Map.insert c 1 m
+        insertOrUpdate (Just count) = Map.insert c (count + 1) m
+    in
+        countChars cs (insertOrUpdate lookupChar)
 
-input = 
+reduceColumnStringToMapCount :: ColumnStrings -> [Map.Map Char Int]
+reduceColumnStringToMapCount (ColumnStrings m) = 
+    let
+        colStrings = map (snd) $ Map.toList m
+        countMap = map (\x -> countChars x Map.empty)   colStrings        
+    in
+        countMap
+
+mostCommonChar :: Map.Map Char Int -> Char
+mostCommonChar m = fst . head . reverse . sortBy sortTupBySnd $ Map.toList m
+
+stringOfMostCommonChars :: ColumnStrings -> String
+stringOfMostCommonChars cs = map mostCommonChar $ reduceColumnStringToMapCount cs
+
+getMaxPair tup@(x, y) = head . reverse
+
+sortTupBySnd :: Ord b => (a, b) -> (a, b) -> Ordering
+sortTupBySnd x y = compare (snd x) (snd y)
+
+inputColumnStrings inp = buildColumnMap inp Map.empty
+
+testAnswer = stringOfMostCommonChars $ inputColumnStrings testInput
+
+testInput = 
     [   "eedadn"
     ,   "drvtee"
     ,   "eandsr"
