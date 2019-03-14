@@ -46,6 +46,9 @@ pixelRows = pixelRows' columnHeight
 pixelColumns :: Pixels -> [Pixels]
 pixelColumns = pixelColumns' rowLength --do not trust this
 
+foldPixels :: [Pixels] -> Pixels
+foldPixels = foldr Map.union (Map.singleton (0,0) Off)
+
 rect :: RowInt -> ColumnInt -> Pixels -> Pixels
 rect 0 _ pix = pix
 rect _ 0 pix = pix
@@ -57,25 +60,34 @@ rect a b pix =
     in
         doUpdate onCoords pix
 
-rotateColumn :: RowInt -> Int -> Pixels -> Pixels
-rotateColumn columnRowPos n pix =
+data Rotatable = Column | Row
+
+rotate :: Rotatable -> Int -> Int -> Pixels -> Pixels
+rotate rtype columnRowPos n pix =
     let
-        newPos y = (y + n) `mod` columnHeight
-        movePos (x, y) = (x, newPos y)
-        columnVals = Map.mapKeys movePos $ getAllColumnCells columnRowPos pix
+        newPos Column y = (y + n) `mod` columnHeight
+        newPos Row x = (x + n) `mod` rowLength
+        movePos Column (x, y) = (x, newPos Column y)
+        movePos Row (x, y) = (newPos Row x, y)
+        columnVals = Map.mapKeys (movePos rtype) $ getAllRotatableCells rtype columnRowPos pix
     in
         Map.union columnVals pix
 
-
-getAllColumnCells :: RowInt -> Pixels -> Pixels
-getAllColumnCells columnRowPos pix = Map.filterWithKey filterFunc pix
+getAllRotatableCells :: Rotatable -> Int -> Pixels -> Pixels
+getAllRotatableCells rtype pos pix = Map.filterWithKey (filterFunc rtype) pix
     where
-        filterFunc (x, _) _ = x == columnRowPos
-        
+        filterFunc Column (x, _) _ = x == pos
+        filterFunc Row (_, y) _ = y == pos
+
+rotateColumn :: RowInt -> Int -> Pixels -> Pixels
+rotateColumn = rotate Column
+
+rotateRow :: ColumnInt -> Int -> Pixels -> Pixels
+rotateRow = rotate Row
 
 
-applyRects = rect 7 1 . rect 4 4 . rect 3 2 
-
+screenTest = rotateRow 3 15 . rotateColumn 2 1 . rotateColumn 3 2 . rect 7 1 . rect 4 4 . rect 3 2 $ pixelMap
+printScreenTest = printScreen screenTest
 
 
 renderRows :: Pixels -> [String]
