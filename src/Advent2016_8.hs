@@ -61,10 +61,10 @@ rotateColumn :: RowInt -> Int -> Pixels -> Pixels
 rotateColumn columnRowPos n pix =
     let
         newPos y = (y + n) `mod` columnHeight
-        movePos ((x, y), state) = ((x, newPos y), state)
-        columnVals = movePos <$> (Map.toList . getAllColumnCells columnRowPos $ pix)
+        movePos (x, y) = (x, newPos y)
+        columnVals = Map.mapKeys movePos $ getAllColumnCells columnRowPos pix
     in
-        Map.union (Map.fromList columnVals) pix
+        Map.union columnVals pix
 
 
 getAllColumnCells :: RowInt -> Pixels -> Pixels
