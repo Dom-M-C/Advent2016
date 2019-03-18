@@ -21,3 +21,4 @@ executable Advent
                       ,containers 
                       ,bytestring 
                       ,pureMD5
+                      ,text

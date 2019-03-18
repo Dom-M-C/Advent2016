@@ -1,6 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Advent2016_8 where 
 
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Data.List
+import Data.Maybe
 import qualified Data.Map as Map
 
 type RowInt = Int
@@ -14,6 +19,13 @@ instance Show PixelState where
     show On = "#"
 
 type Pixels = Map.Map Position PixelState
+
+data Rotatable = Column | Row
+data ScreenOperation 
+    = Rectangle Int Int 
+    | RotateColumn RowInt Int 
+    | RotateRow ColumnInt Int
+    deriving Show
 
 rowLength :: RowInt
 rowLength = 50
@@ -60,8 +72,6 @@ rect a b pix =
     in
         doUpdate onCoords pix
 
-data Rotatable = Column | Row
-
 rotate :: Rotatable -> Int -> Int -> Pixels -> Pixels
 rotate rtype columnRowPos n pix =
     let
@@ -85,10 +95,8 @@ rotateColumn = rotate Column
 rotateRow :: ColumnInt -> Int -> Pixels -> Pixels
 rotateRow = rotate Row
 
-
-screenTest = rotateRow 3 15 . rotateColumn 2 1 . rotateColumn 3 2 . rect 7 1 . rect 4 4 . rect 3 2 $ pixelMap
+screenTest = rect 2 2 . rotateRow 1 15 . rotateColumn 2 1 . rotateColumn 1 4 . rect 2 2 $ pixelMap
 printScreenTest = printScreen screenTest
-
 
 renderRows :: Pixels -> [String]
 renderRows = map (mconcat . map show) . map Map.elems . pixelRows
@@ -99,5 +107,36 @@ renderScreen = unlines . renderRows
 printScreen :: Pixels -> IO ()
 printScreen = putStrLn . renderScreen 
 
+
+parseOperation :: T.Text -> ScreenOperation
+parseOperation str
+    | T.isPrefixOf "rect" str = Rectangle (read rectX :: Int) (read rectY :: Int)
+    | T.isPrefixOf "rotate row" str = RotateRow (read rot :: ColumnInt) (read rotVal :: Int)
+    | T.isPrefixOf "rotate column" str = RotateColumn (read rot :: RowInt) (read rotVal :: Int)
+    where
+        (op:s:vals) = T.words str
+        (rot, rotVal) = (T.unpack . T.drop 2 . head $ vals, T.unpack . last $ vals)
+        (rectX:rectY:[]) = map T.unpack $ T.splitOn "x" s
+
+
+executeOperation :: ScreenOperation -> Pixels -> Pixels
+executeOperation (Rectangle x y) = rect x y
+executeOperation (RotateRow r n) = rotateRow r n
+executeOperation (RotateColumn c n) = rotateColumn c n
+
+animate inp = do
+    screen <- inp
+    undefined
+
+input :: IO [T.Text]
+input = do
+    contents <- TIO.readFile "src\\input8_1.txt"
+    return . T.lines $ contents
+
+
+stringAfter :: Char -> String -> String
+stringAfter c = snd . splitOnUnsafe c
+
+splitOnUnsafe c str =  (\y -> splitAt y str) . fromJust . elemIndex c $ str
 
 
