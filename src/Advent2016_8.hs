@@ -153,3 +153,5 @@ stringAfter c = snd . splitOnUnsafe c
 splitOnUnsafe c str =  (\y -> splitAt y str) . fromJust . elemIndex c $ str
 
 
+firstAnswer = Map.size <$> ((foldOps <$> operationsIO <*> return pixelMap) >>= (\pix -> return $ Map.filter (\y -> y == On) pix))
+secondAnswer = (foldOps <$> operationsIO <*> return pixelMap) >>= (\pix -> printScreen pix)
