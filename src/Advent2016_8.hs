@@ -7,12 +7,13 @@ import qualified Data.Text.IO as TIO
 import Data.List
 import Data.Maybe
 import qualified Data.Map as Map
+import Control.Monad
 
 type RowInt = Int
 type ColumnInt = Int
 type Position = (RowInt, ColumnInt)
     
-data PixelState = On | Off
+data PixelState = On | Off deriving Eq
 
 instance Show PixelState where
     show Off = "."
@@ -124,9 +125,21 @@ executeOperation (Rectangle x y) = rect x y
 executeOperation (RotateRow r n) = rotateRow r n
 executeOperation (RotateColumn c n) = rotateColumn c n
 
-animate inp = do
-    screen <- inp
-    undefined
+{-animate pix = do
+    printScreen pix
+    animate' input pix
+-}
+operations :: [T.Text] -> [ScreenOperation]
+operations inp = map parseOperation inp
+
+operationsIO = operations <$> input
+
+foldOps ::  [ScreenOperation] -> Pixels -> Pixels
+foldOps [] p = p
+foldOps (o:ops) p = foldOps ops (executeOperation o p)
+
+
+
 
 input :: IO [T.Text]
 input = do
