@@ -125,33 +125,27 @@ executeOperation (Rectangle x y) = rect x y
 executeOperation (RotateRow r n) = rotateRow r n
 executeOperation (RotateColumn c n) = rotateColumn c n
 
-{-animate pix = do
-    printScreen pix
-    animate' input pix
--}
 operations :: [T.Text] -> [ScreenOperation]
 operations inp = map parseOperation inp
-
-operationsIO = operations <$> input
-
-foldOps ::  [ScreenOperation] -> Pixels -> Pixels
-foldOps [] p = p
-foldOps (o:ops) p = foldOps ops (executeOperation o p)
-
-
-
 
 input :: IO [T.Text]
 input = do
     contents <- TIO.readFile "src\\input8_1.txt"
     return . T.lines $ contents
 
+operationsIO :: IO [ScreenOperation]
+operationsIO = operations <$> input
 
-stringAfter :: Char -> String -> String
-stringAfter c = snd . splitOnUnsafe c
+foldOps ::  [ScreenOperation] -> Pixels -> Pixels
+foldOps [] p = p
+foldOps (o:ops) p = foldOps ops (executeOperation o p)
 
-splitOnUnsafe c str =  (\y -> splitAt y str) . fromJust . elemIndex c $ str
-
+foldOpsAnimate :: [ScreenOperation] -> Pixels -> IO (Pixels)
+foldOpsAnimate [] p = printScreen p >> return p
+foldOpsAnimate (o:ops) p = printScreen p
+    >>  (foldOpsAnimate ops (executeOperation o p))
 
 firstAnswer = Map.size <$> ((foldOps <$> operationsIO <*> return pixelMap) >>= (\pix -> return $ Map.filter (\y -> y == On) pix))
 secondAnswer = (foldOps <$> operationsIO <*> return pixelMap) >>= (\pix -> printScreen pix)
+
+animateOperations = foldOpsAnimate <$> operationsIO >>= (\y -> y pixelMap) >> return ()
