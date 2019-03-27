@@ -17,10 +17,10 @@ instance Show Marker where
     show (Marker dl rt) = mconcat [show dl, "x", show rt]
 
 instance Semigroup Marker where
-    (<>) (Marker dl1 rt1) (Marker dl2 rt2) = Marker (min dl1 dl2) (rt1 * rt2)
+    (<>) (Marker dl1 rt1) (Marker dl2 rt2) = Marker (dl2 - dl1) (rt1 * rt2)
 
 instance Monoid Marker where
-    mempty = Marker (maxBound :: DataLength) 1
+    mempty = Marker 0 1
 
 type CompressedText = T.Text
 type DecompressedString = String
@@ -28,6 +28,10 @@ type DecompressedString = String
 data PreprocessedText = PreprocessedText
     {   marker :: Marker
     ,   compressedText :: CompressedText
+    } 
+    | Straggler
+    {   straggler :: CompressedText
+    ,   preProcessedText :: PreprocessedText
     }
 
 instance Show PreprocessedText where
@@ -50,7 +54,7 @@ parseMarker txt = Marker (readText dLength :: DataLength) (readText rTimes :: Re
 
 parseInput :: T.Text -> [PreprocessedText]
 parseInput "" = []
-parseInput txt =
+parseInput txt = 
     let
         (mark, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
         marker = parseMarker mark
@@ -58,23 +62,43 @@ parseInput txt =
         this m = T.take (dataLength m) rest
     in
         (PreprocessedText marker (this marker)) : parseInput (next marker)
+    
+parseInput' :: T.Text -> PreprocessedText
+parseInput' txt
+    | T.head txt /= '(' = Straggler lead (parseInput' rest)
+    | otherwise = (PreprocessedText marker (this marker)) 
+    where
+        (lead, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
+        marker = parseMarker lead
+        next m = T.drop (dataLength m) rest
+        this m = T.take (dataLength m) rest
 
-expandMarks :: PreprocessedText -> DecompressedString
-expandMarks (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
+--parseInput'' :: T.Text -> [(PreprocessedText, T.Text)]
+--parseInput'' "" = ([], "")
+parseInput'' txt = parseInput' (this marker) : parseInput'' (next marker)
+    where
+        (mark, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
+        marker = parseMarker mark
+        next m = T.drop (dataLength m) rest
+        this m = T.take (dataLength m) rest
+
+
+expandFirstMark :: PreprocessedText -> DecompressedString
+expandFirstMark (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
     where
         expandedText = T.unpack . T.replicate (repetitionTimes mark) . T.take (dataLength mark)
         leftoverText = T.unpack . T.drop (dataLength mark)
 
-processText :: T.Text -> [DecompressedString]
-processText = map expandMarks . parseInput
+processFirstMarks :: T.Text -> [DecompressedString]
+processFirstMarks = map expandFirstMark . parseInput
 
-extractAdditionalMarks :: CompressedText -> [[CompressedText]]
-extractAdditionalMarks ct = map (T.splitOn ")") . T.splitOn "(" $ ct
+extractMarks :: CompressedText -> [[CompressedText]]
+extractMarks ct = map (T.splitOn ")") . T.splitOn "(" $ ct
 
-preProcessText :: PreprocessedText -> [PreprocessedText]
-preProcessText (PreprocessedText _ txt) = map (\(x, y) -> PreprocessedText x y) $ zip marks txts
+preProcessText :: CompressedText -> [PreprocessedText]
+preProcessText txt = map (\(x, y) -> PreprocessedText x y) $ zip marks txts
     where
-        base = extractAdditionalMarks $ txt
+        base = extractMarks $ txt
         marks = map parseMarker . map head $ base
         txts = map last base
 
@@ -87,7 +111,7 @@ collapsePreProcessed (PreprocessedText m1 "" : PreprocessedText m2 t2 : pts) =
 collapsePreProcessed (PreprocessedText m1 t1 : pts) = PreprocessedText m1 t1
     : collapsePreProcessed pts
 
-postCollapsedPreProcess = map (collapsePreProcessed .  preProcessText)  . parseInput
+postCollapsedPreProcess = collapsePreProcessed . preProcessText
 
 testInput :: T.Text
 testInput = "(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN"
@@ -97,8 +121,9 @@ testInput' = "(27x12)(20x12)(13x14)(7x10)(1x12)A"
 
 inputIO :: IO T.Text
 inputIO = do
-    file <- TIO.readFile "input9.txt"
+    file <- TIO.readFile ".\\src\\input9.txt"
     return file
 
-firstAnswer = (sum . map length . processText) <$> inputIO
+firstAnswer = (sum . map length . processFirstMarks) <$> inputIO
 
+secondAnswer = (length . mconcat . map expandFirstMark . postCollapsedPreProcess) $ testInput -- <$> inputIO
