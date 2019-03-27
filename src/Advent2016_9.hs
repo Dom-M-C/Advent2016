@@ -27,15 +27,13 @@ type DecompressedString = String
 
 data PreprocessedText = PreprocessedText
     {   marker :: Marker
-    ,   compressedText :: CompressedText
-    } 
+    ,   compressedText :: CompressedText } 
     | Straggler
-    {   straggler :: CompressedText
-    ,   preProcessedText :: PreprocessedText
-    }
+    {   stragglers :: CompressedText }
 
 instance Show PreprocessedText where
     show (PreprocessedText m ct) = mconcat [show m, " ", T.unpack ct]
+    show (Straggler s) = show s
 
 --instance Semigroup PreprocessedText where
 --    (<>) (PreprocessedText m1 ct1) (PreprocessedText m2 ct2) = PreprocessedText (m1 <> m2) (ct1 <> ct2)
@@ -63,24 +61,22 @@ parseInput txt =
     in
         (PreprocessedText marker (this marker)) : parseInput (next marker)
     
-parseInput' :: T.Text -> PreprocessedText
+parseInput' :: T.Text -> [PreprocessedText]
+parseInput' "" = []
 parseInput' txt
-    | T.head txt /= '(' = Straggler lead (parseInput' rest)
-    | otherwise = (PreprocessedText marker (this marker)) 
+    | T.head txt == ')' = parseInput' . T.drop 1 $ txt
+    | T.head txt /= '(' = Straggler straggles : parseInput' (mark <> ")" <> rest)
+    | otherwise = (PreprocessedText marker (this marker)) : parseInput' (next marker)
     where
-        (lead, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
-        marker = parseMarker lead
+        (lead, rest) = (\(x,y) -> (x, T.drop 1 y)) . T.breakOn  ")" $ txt
+        marker = parseMarker . T.drop 1 $ lead
         next m = T.drop (dataLength m) rest
         this m = T.take (dataLength m) rest
+        (straggles, mark) = T.breakOn "(" lead
 
 --parseInput'' :: T.Text -> [(PreprocessedText, T.Text)]
 --parseInput'' "" = ([], "")
-parseInput'' txt = parseInput' (this marker) : parseInput'' (next marker)
-    where
-        (mark, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
-        marker = parseMarker mark
-        next m = T.drop (dataLength m) rest
-        this m = T.take (dataLength m) rest
+
 
 
 expandFirstMark :: PreprocessedText -> DecompressedString
