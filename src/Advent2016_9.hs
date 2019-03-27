@@ -29,6 +29,11 @@ data PreprocessedText = PreprocessedText
     {   marker :: Marker
     ,   compressedText :: CompressedText
     }
+    | MultiMarker
+    {   marker :: Marker
+    ,   nestedMarkers :: [PreprocessedText]
+    ,   compressedText :: CompressedText
+    }
 
 instance Show PreprocessedText where
     show (PreprocessedText m ct) = mconcat [show m, " ", T.unpack ct]
@@ -59,6 +64,16 @@ parseInput txt =
     in
         (PreprocessedText marker (this marker)) : parseInput (next marker)
 
+--parseInput' :: T.Text -> [PreprocessedText]
+parseInput' "" = []
+parseInput' txt =
+    let
+        (mark, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
+        allMarks = extractAllMarks txt
+    in
+        allMarks : parseInput' rest
+        --(PreprocessedText marker (this marker)) : parseInput' (next marker)
+
 expandMarks :: PreprocessedText -> DecompressedString
 expandMarks (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
     where
@@ -68,26 +83,23 @@ expandMarks (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
 processText :: T.Text -> [DecompressedString]
 processText = map expandMarks . parseInput
 
-extractAdditionalMarks :: CompressedText -> [[CompressedText]]
-extractAdditionalMarks ct = map (T.splitOn ")") . T.splitOn "(" $ ct
+extractAllMarks :: CompressedText -> [[CompressedText]]
+extractAllMarks ct = map (T.splitOn ")") . T.splitOn "(" $ ct
 
-preProcessText :: PreprocessedText -> [PreprocessedText]
-preProcessText (PreprocessedText _ txt) = map (\(x, y) -> PreprocessedText x y) $ zip marks txts
+extractMarks ::  CompressedText -> [(Marker, CompressedText)]
+extractMarks txt = zip marks txts
     where
-        base = extractAdditionalMarks $ txt
+        base = extractAllMarks $ txt
         marks = map parseMarker . map head $ base
         txts = map last base
 
-collapsePreProcessed :: [PreprocessedText] -> [PreprocessedText]
-collapsePreProcessed [] = []
-
-collapsePreProcessed (PreprocessedText m1 "" : PreprocessedText m2 t2 : pts) =
-    collapsePreProcessed (PreprocessedText (m1 <> m2) (t2) : pts)
-
-collapsePreProcessed (PreprocessedText m1 t1 : pts) = PreprocessedText m1 t1
-    : collapsePreProcessed pts
-
-postCollapsedPreProcess = map (collapsePreProcessed .  preProcessText)  . parseInput
+--makeMultiMarks :: [(Marker, CompressedText)] -> PreprocessedText -> [PreprocessedText]
+makeMultiMarks [] _ = []
+makeMultiMarks ls@((m, ct):ms) current
+    -- | parseMarker == mempty = undefined --makeMultiMarks ms
+    | otherwise = undefined --PreprocessedText (m) (take (dataLength m) ct) :
+    where
+        txt = (snd . mconcat) ls
 
 testInput :: T.Text
 testInput = "(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN"
