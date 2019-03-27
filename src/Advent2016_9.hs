@@ -7,39 +7,31 @@ import qualified Data.Text.IO as TIO
 
 type DataLength = Int
 type RepetitionTimes = Int
+type CompressedText = T.Text
+type DecompressedString = String
 
 data Marker = Marker
     {   dataLength :: DataLength
-    ,   repetitionTimes :: RepetitionTimes
-    }
+    ,   repetitionTimes :: RepetitionTimes }
 
 instance Show Marker where
     show (Marker dl rt) = mconcat [show dl, "x", show rt]
 
 instance Semigroup Marker where
-    (<>) (Marker dl1 rt1) (Marker dl2 rt2) = Marker (dl2 - dl1) (rt1 * rt2)
+    (<>) (Marker dl1 rt1) (Marker dl2 rt2) = Marker (min dl2 dl1) (rt1 * rt2)
 
 instance Monoid Marker where
     mempty = Marker 0 1
 
-type CompressedText = T.Text
-type DecompressedString = String
-
 data PreprocessedText = PreprocessedText
     {   marker :: Marker
-    ,   compressedText :: CompressedText } 
+    ,   compressedText :: CompressedText }
     | Straggler
     {   stragglers :: CompressedText }
 
 instance Show PreprocessedText where
     show (PreprocessedText m ct) = mconcat [show m, " ", T.unpack ct]
     show (Straggler s) = show s
-
---instance Semigroup PreprocessedText where
---    (<>) (PreprocessedText m1 ct1) (PreprocessedText m2 ct2) = PreprocessedText (m1 <> m2) (ct1 <> ct2)
---
---instance Monoid PreprocessedText where
---    mempty = PreprocessedText (mempty :: Marker) (mempty :: T.Text)
 
 readText :: Read a => T.Text -> a
 readText = read . T.unpack
@@ -52,7 +44,7 @@ parseMarker txt = Marker (readText dLength :: DataLength) (readText rTimes :: Re
 
 parseInput :: T.Text -> [PreprocessedText]
 parseInput "" = []
-parseInput txt = 
+parseInput txt =
     let
         (mark, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
         marker = parseMarker mark
@@ -60,7 +52,7 @@ parseInput txt =
         this m = T.take (dataLength m) rest
     in
         (PreprocessedText marker (this marker)) : parseInput (next marker)
-    
+
 parseInput' :: T.Text -> [PreprocessedText]
 parseInput' "" = []
 parseInput' txt
@@ -74,10 +66,14 @@ parseInput' txt
         this m = T.take (dataLength m) rest
         (straggles, mark) = T.breakOn "(" lead
 
---parseInput'' :: T.Text -> [(PreprocessedText, T.Text)]
---parseInput'' "" = ([], "")
-
-
+--countMultiMark :: PreprocessedText -> Int
+--countMultiMark (Straggler ct) = T.length ct
+--countMultiMark (PreprocessedText m ct) = marks
+--    where
+--        marks = map ((<>m) . parseMarker . head) . extractMarks $ ct
+--        txt = map last . extractMarks $ ct
+--        r@((mark, t):ps) = zip marks txt
+--        int (a, b) = (T.length b * (repetitionTimes a))
 
 expandFirstMark :: PreprocessedText -> DecompressedString
 expandFirstMark (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
@@ -88,26 +84,10 @@ expandFirstMark (PreprocessedText mark txt) = expandedText txt <> leftoverText t
 processFirstMarks :: T.Text -> [DecompressedString]
 processFirstMarks = map expandFirstMark . parseInput
 
-extractMarks :: CompressedText -> [[CompressedText]]
-extractMarks ct = map (T.splitOn ")") . T.splitOn "(" $ ct
-
-preProcessText :: CompressedText -> [PreprocessedText]
-preProcessText txt = map (\(x, y) -> PreprocessedText x y) $ zip marks txts
+extractMarks :: CompressedText -> [(Maybe Marker, Maybe T.Text)]
+extractMarks ct = map (\x -> if T.isInfixOf "x" x then (Just (parseMarker x), Nothing) else (Nothing, Just x)) .  mconcat $ marks
     where
-        base = extractMarks $ txt
-        marks = map parseMarker . map head $ base
-        txts = map last base
-
-collapsePreProcessed :: [PreprocessedText] -> [PreprocessedText]
-collapsePreProcessed [] = []
-
-collapsePreProcessed (PreprocessedText m1 "" : PreprocessedText m2 t2 : pts) =
-    collapsePreProcessed (PreprocessedText (m1 <> m2) (t2) : pts)
-
-collapsePreProcessed (PreprocessedText m1 t1 : pts) = PreprocessedText m1 t1
-    : collapsePreProcessed pts
-
-postCollapsedPreProcess = collapsePreProcessed . preProcessText
+        marks = map (T.splitOn ")") . T.splitOn "(" $ ct
 
 testInput :: T.Text
 testInput = "(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN"
@@ -117,9 +97,9 @@ testInput' = "(27x12)(20x12)(13x14)(7x10)(1x12)A"
 
 inputIO :: IO T.Text
 inputIO = do
-    file <- TIO.readFile ".\\src\\input9.txt"
+    file <- TIO.readFile "input9.txt"
     return file
 
 firstAnswer = (sum . map length . processFirstMarks) <$> inputIO
 
-secondAnswer = (length . mconcat . map expandFirstMark . postCollapsedPreProcess) $ testInput -- <$> inputIO
+--secondAnswer = (sum . map countMultiMark  . parseInput') <$> inputIO
