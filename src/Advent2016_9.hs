@@ -4,6 +4,7 @@ module Advent2016_9 where
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.Maybe
 
 type DataLength = Int
 type RepetitionTimes = Int
@@ -12,7 +13,7 @@ type DecompressedString = String
 
 data Marker = Marker
     {   dataLength :: DataLength
-    ,   repetitionTimes :: RepetitionTimes }
+    ,   repetitionTimes :: RepetitionTimes } deriving Eq
 
 instance Show Marker where
     show (Marker dl rt) = mconcat [show dl, "x", show rt]
@@ -66,14 +67,27 @@ parseInput' txt
         this m = T.take (dataLength m) rest
         (straggles, mark) = T.breakOn "(" lead
 
---countMultiMark :: PreprocessedText -> Int
---countMultiMark (Straggler ct) = T.length ct
---countMultiMark (PreprocessedText m ct) = marks
---    where
---        marks = map ((<>m) . parseMarker . head) . extractMarks $ ct
---        txt = map last . extractMarks $ ct
---        r@((mark, t):ps) = zip marks txt
---        int (a, b) = (T.length b * (repetitionTimes a))
+countMultiMark :: PreprocessedText -> Int
+countMultiMark (Straggler ct) = T.length ct
+countMultiMark (PreprocessedText m ct) = sum . map expandedInt . processPairs $ pairs -- zip marks txt --(PreprocessedText m ct) = marks
+    where
+        --marks = map ((<>m) . parseMarker . head) . extractMarks $ ct
+        --txt = map last . extractMarks $ ct
+        pairs = filter (\(x, y) -> not (isNothing x && y == (Just "")) ) . extractMarks $ ct
+        --marks = map ((<>m) . fromJust) . filter (isJust) $ maybeMarks
+        --txt = map fromJust . filter (isJust) $ maybeTxt
+        --r@((mark, t):ps) = zip marks txt
+        expandedInt (PreprocessedText a b) = (T.length b * (repetitionTimes a))
+
+processPairs :: [(Maybe Marker, Maybe CompressedText)] -> [PreprocessedText]
+processPairs [] = []
+processPairs ((Just mark, Just txt) :xs) = PreprocessedText mark txt : processPairs xs
+--processPairs ((Just mark, Nothing)  :(Just mark2, _):xs) = processPairs ((Just (mark <> mark2), Nothing):xs)
+processPairs ((Just mark, Nothing)  :(Just mark2, Just txt2):xs) = processPairs ((Just (mark <> mark2), Just txt2):xs) 
+processPairs ((Just mark, Nothing)  :(Nothing, Just txt2):xs) = processPairs ((Just (mark), Just txt2):xs) 
+processPairs ((Nothing, Just txt)  :(Just mark2, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
+processPairs ((Nothing, Just txt)  :(Nothing, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
+processPairs ((Nothing, Just txt2)  :xs) = processPairs ((Just (mempty), Just txt2):xs) 
 
 expandFirstMark :: PreprocessedText -> DecompressedString
 expandFirstMark (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
@@ -85,7 +99,7 @@ processFirstMarks :: T.Text -> [DecompressedString]
 processFirstMarks = map expandFirstMark . parseInput
 
 extractMarks :: CompressedText -> [(Maybe Marker, Maybe T.Text)]
-extractMarks ct = map (\x -> if T.isInfixOf "x" x then (Just (parseMarker x), Nothing) else (Nothing, Just x)) .  mconcat $ marks
+extractMarks ct = map (\x -> if T.isInfixOf "x" x then (Just (parseMarker x), Nothing) else (Just mempty, Just x)) .  mconcat $ marks
     where
         marks = map (T.splitOn ")") . T.splitOn "(" $ ct
 
@@ -97,7 +111,7 @@ testInput' = "(27x12)(20x12)(13x14)(7x10)(1x12)A"
 
 inputIO :: IO T.Text
 inputIO = do
-    file <- TIO.readFile "input9.txt"
+    file <- TIO.readFile "src\\input9.txt"
     return file
 
 firstAnswer = (sum . map length . processFirstMarks) <$> inputIO
