@@ -71,23 +71,21 @@ countMultiMark :: PreprocessedText -> Int
 countMultiMark (Straggler ct) = T.length ct
 countMultiMark (PreprocessedText m ct) = sum . map expandedInt . processPairs $ pairs -- zip marks txt --(PreprocessedText m ct) = marks
     where
-        --marks = map ((<>m) . parseMarker . head) . extractMarks $ ct
-        --txt = map last . extractMarks $ ct
         pairs = filter (\(x, y) -> not (isNothing x && y == (Just "")) ) . extractMarks $ ct
-        --marks = map ((<>m) . fromJust) . filter (isJust) $ maybeMarks
-        --txt = map fromJust . filter (isJust) $ maybeTxt
-        --r@((mark, t):ps) = zip marks txt
-        expandedInt (PreprocessedText a b) = (T.length b * (repetitionTimes a))
+        expandedInt (PreprocessedText a b) = T.length b * (repetitionTimes (m<>a))
 
 processPairs :: [(Maybe Marker, Maybe CompressedText)] -> [PreprocessedText]
 processPairs [] = []
 processPairs ((Just mark, Just txt) :xs) = PreprocessedText mark txt : processPairs xs
---processPairs ((Just mark, Nothing)  :(Just mark2, _):xs) = processPairs ((Just (mark <> mark2), Nothing):xs)
 processPairs ((Just mark, Nothing)  :(Just mark2, Just txt2):xs) = processPairs ((Just (mark <> mark2), Just txt2):xs) 
 processPairs ((Just mark, Nothing)  :(Nothing, Just txt2):xs) = processPairs ((Just (mark), Just txt2):xs) 
-processPairs ((Nothing, Just txt)  :(Just mark2, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
-processPairs ((Nothing, Just txt)  :(Nothing, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
+processPairs ((Nothing, Just txt)   :(Just mark2, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
+processPairs ((Nothing, Just txt)   :(Nothing, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
 processPairs ((Nothing, Just txt2)  :xs) = processPairs ((Just (mempty), Just txt2):xs) 
+
+foldText :: [PreprocessedText] -> PreprocessedText
+foldText xs = foldl foldf (PreprocessedText mempty "") xs
+    where foldf (PreprocessedText x y) (PreprocessedText a b) = PreprocessedText (x<>a) ""
 
 expandFirstMark :: PreprocessedText -> DecompressedString
 expandFirstMark (PreprocessedText mark txt) = expandedText txt <> leftoverText txt
