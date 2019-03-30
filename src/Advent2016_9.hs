@@ -5,6 +5,7 @@ module Advent2016_9 where
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Maybe
+import Control.Monad
 
 type DataLength = Int
 type RepetitionTimes = Int
@@ -29,6 +30,10 @@ data PreprocessedText = PreprocessedText
     ,   compressedText :: CompressedText }
     | Straggler
     {   stragglers :: CompressedText }
+    | MultiMark
+    {   markers :: [Marker]
+    ,   compressedText :: CompressedText
+    }
 
 instance Show PreprocessedText where
     show (PreprocessedText m ct) = mconcat [show m, " ", T.unpack ct]
@@ -77,11 +82,11 @@ countMultiMark (PreprocessedText m ct) = sum . map expandedInt . processPairs $ 
 processPairs :: [(Maybe Marker, Maybe CompressedText)] -> [PreprocessedText]
 processPairs [] = []
 processPairs ((Just mark, Just txt) :xs) = PreprocessedText mark txt : processPairs xs
-processPairs ((Just mark, Nothing)  :(Just mark2, Just txt2):xs) = processPairs ((Just (mark <> mark2), Just txt2):xs) 
-processPairs ((Just mark, Nothing)  :(Nothing, Just txt2):xs) = processPairs ((Just (mark), Just txt2):xs) 
-processPairs ((Nothing, Just txt)   :(Just mark2, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
-processPairs ((Nothing, Just txt)   :(Nothing, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs) 
-processPairs ((Nothing, Just txt2)  :xs) = processPairs ((Just (mempty), Just txt2):xs) 
+processPairs ((Just mark, Nothing)  :(Just mark2, Just txt2):xs) = processPairs ((Just (mark <> mark2), Just txt2):xs)
+processPairs ((Just mark, Nothing)  :(Nothing, Just txt2):xs) = processPairs ((Just (mark), Just txt2):xs)
+processPairs ((Nothing, Just txt)   :(Just mark2, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs)
+processPairs ((Nothing, Just txt)   :(Nothing, Just txt2):xs) = processPairs ((Just (mempty), Just txt):xs)
+processPairs ((Nothing, Just txt2)  :xs) = processPairs ((Just (mempty), Just txt2):xs)
 
 foldText :: [PreprocessedText] -> PreprocessedText
 foldText xs = foldl foldf (PreprocessedText mempty "") xs
@@ -97,9 +102,45 @@ processFirstMarks :: T.Text -> [DecompressedString]
 processFirstMarks = map expandFirstMark . parseInput
 
 extractMarks :: CompressedText -> [(Maybe Marker, Maybe T.Text)]
-extractMarks ct = map (\x -> if T.isInfixOf "x" x then (Just (parseMarker x), Nothing) else (Just mempty, Just x)) .  mconcat $ marks
+extractMarks ct = map (\x -> if T.isInfixOf "x" x
+    then (Just (parseMarker x), Nothing)
+    else (Nothing, Just x)) .  mconcat $ marks
     where
         marks = map (T.splitOn ")") . T.splitOn "(" $ ct
+
+{-processMarks :: PreprocessedText -> PreprocessedText
+processToMulti (PreprocessedText m ct)  = undefined --(MultiMark marks remainingTxt)
+    where
+        eles =
+-}
+
+tokenList (PreprocessedText m ct) = mconcat . map (T.splitOn ")") . T.splitOn "(" $ ct
+
+--multiPair (processed, (x:[])) = (processed, x)
+multiPair (processed, eles) = do
+    e <- eles
+    if T.isInfixOf "x" e
+    then return (e:processed, d)
+    else return (processed, e)
+
+multiPair' (processed, (e:eles))
+    |   T.isInfixOf "x" e = multiPair' (parseMarker e : processed)
+    |
+
+
+--(\x -> multiPair ([], x))  . head . map tokenList . parseInput'
+
+
+--processMarks x = x
+
+{-    | Straggler
+    {   stragglers :: CompressedText }
+    | MultiMark
+    {   markers :: [Marker]
+    ,   compressedText :: CompressedText
+    }
+-}
+
 
 testInput :: T.Text
 testInput = "(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN"
