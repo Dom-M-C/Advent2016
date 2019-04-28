@@ -116,15 +116,20 @@ processToMulti (PreprocessedText m ct)  = undefined --(MultiMark marks remaining
 
 tokenList (PreprocessedText m ct) = mconcat . map (T.splitOn ")") . T.splitOn "(" $ ct
 
---multiPair (processed, (x:[])) = (processed, x)
+{-multiPair (processed, (x:[])) = (processed, x)
 multiPair (processed, eles) = do
     e <- eles
     if T.isInfixOf "x" e
-    then return (e:processed, d)
+    then return (MultiMark (parseMarker e) ""):processed, d)
     else return (processed, e)
 
+
+-}
+
+pushMark :: PreprocessedText ->
+
 multiPair' (processed, (e:eles))
-    |   T.isInfixOf "x" e = multiPair' (parseMarker e : processed)
+    |   T.isInfixOf "x" e = multiPair' ((MultiMark parseInput e ""))
     |
 
 
