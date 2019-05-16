@@ -32,14 +32,16 @@ data PreprocessedText = PreprocessedText
     | MultiMark
     {   markers :: [Marker]
     ,   compressedText :: CompressedText }
-    | TestMulti
-    {  preprocessed :: [PreprocessedText] }
+    | ProcessedText
+    {   marker :: Marker
+    ,   overlappedMarkers :: [Marker]
+    ,   compressedText :: CompressedText }
 
 instance Show PreprocessedText where
     show (PreprocessedText m ct) = mconcat [show m, " ", show ct]
     show (Straggler s) = show s
     show (MultiMark ms ct) = mconcat [show ms, ": ", show ct]
-    show (TestMulti pp) = mconcat $ map show pp
+
 
 readText :: Read a => T.Text -> a
 readText = read . T.unpack
@@ -48,7 +50,7 @@ parseMarker :: T.Text -> Marker
 parseMarker "" = mempty
 parseMarker txt = Marker (readText dLength :: DataLength) (readText rTimes :: RepetitionTimes)
     where
-        (dLength, rTimes) = (\(x, y) -> (x, T.drop 1 $ y) ) . T.breakOn "x" $ txt
+        (dLength, rTimes) = (\(x, y) -> (x, T.drop 1 y) ) . T.breakOn "x" $ txt
 
 parseInput :: T.Text -> [PreprocessedText]
 parseInput "" = []
@@ -59,14 +61,14 @@ parseInput txt =
         next m = T.drop (dataLength m) rest
         this m = T.take (dataLength m) rest
     in
-        (PreprocessedText marker (this marker)) : parseInput (next marker)
+        PreprocessedText marker (this marker) : parseInput (next marker)
 
 parseInput' :: T.Text -> [PreprocessedText]
 parseInput' "" = []
 parseInput' txt
     | T.head txt == ')' = parseInput' . T.drop 1 $ txt
     | T.head txt /= '(' = Straggler straggles : parseInput' (mark <> ")" <> rest)
-    | otherwise = (PreprocessedText marker (this marker)) : parseInput' (next marker)
+    | otherwise = PreprocessedText marker (this marker) : parseInput' (next marker)
     where
         (lead, rest) = (\(x,y) -> (x, T.drop 1 y)) . T.breakOn  ")" $ txt
         marker = parseMarker . T.drop 1 $ lead
@@ -77,19 +79,21 @@ parseInput' txt
 recurseInput [] = []
 recurseInput (s@(Straggler strag) : xs) = s : recurseInput xs
 recurseInput (PreprocessedText m ct:xs) = case parseInput' ct of
-    ((PreprocessedText mi cti):[]) -> recurseInput ((PreprocessedText (m<>mi) cti) : xs)
-    ((PreprocessedText mi cti):ys) -> recurseInput ((PreprocessedText (m<>mi) cti) : ys <> xs)
-    (Straggler strag:[])           -> recurseInput ((PreprocessedText m strag) : xs)
-    (Straggler strag:ys)           -> recurseInput ((PreprocessedText m strag) : ys <> xs)
+    [PreprocessedText mi cti]   -> recurseInput (PreprocessedText (m<>mi) cti : xs)
+    PreprocessedText mi cti:ys  -> recurseInput (PreprocessedText (m<>mi) cti : ys <> xs)
+    [Straggler strag]           -> recurseInput (PreprocessedText m strag : xs)
+    Straggler strag:ys          -> recurseInput (PreprocessedText m strag : ys <> xs)
+    where
+        updateMarks ctw = undefined
 
-parseRecurse = (recurseInput . parseInput')
+parseRecurse = recurseInput . parseInput'
 
 --extractMultis :: PreprocessedText -> PreprocessedText
 extractMultis (s@(Straggler _), []) = (s, [])
-extractMultis ((PreprocessedText m ct), (x:xs)) = case parseInput' ct of
-    ((PreprocessedText mi cti):[]) -> ( (PreprocessedText (m<>mi) cti), [])
-    (Straggler strag:[]) -> ((PreprocessedText m strag), [])
-    ((PreprocessedText mi cti):xs) -> extractMultis ((PreprocessedText (m<>mi) cti), xs)
+extractMultis (PreprocessedText m ct, x : xs) = case parseInput' ct of
+    [PreprocessedText mi cti]       -> (PreprocessedText (m <> mi) cti, [])
+    [Straggler strag]               -> (PreprocessedText m strag, [])
+    (PreprocessedText mi cti : xs)  -> extractMultis (PreprocessedText (m <> mi) cti, xs)
 
 
  --   ((PreprocessedText m ct):xs) -> extractMultis (MultiMark [m] ct)
@@ -98,16 +102,16 @@ extractMultis ((PreprocessedText m ct), (x:xs)) = case parseInput' ct of
 combinePreText :: PreprocessedText -> PreprocessedText -> PreprocessedText
 combinePreText (PreprocessedText m "") (MultiMark ms "") = MultiMark (m:ms) ""
 combinePreText (PreprocessedText m ct) (MultiMark ms "") = MultiMark (m:ms) ct
-combinePreText (PreprocessedText m1 "") (PreprocessedText m2 "") = MultiMark (m1:m2:[]) ""
+combinePreText (PreprocessedText m1 "") (PreprocessedText m2 "") = MultiMark [m1, m2] ""
 combinePreText (PreprocessedText m1 "") (PreprocessedText m2 ct2) = PreprocessedText (m1 <> m2) ct2
 
 countMultiMark :: PreprocessedText -> Int
-countMultiMark (TestMulti ps) = sum . map countMultiMark $ ps
+--countMultiMark (ProcessedText m ct om) = sum . map countMultiMark $ ct
 countMultiMark (Straggler ct) = T.length ct
 countMultiMark (PreprocessedText m ct) = sum . map expandedInt . processPairs $ pairs -- zip marks txt --(PreprocessedText m ct) = marks
     where
-        pairs = filter (\(x, y) -> not (isNothing x && y == (Just "")) ) . extractMarks $ ct
-        expandedInt (PreprocessedText a b) = T.length b * (repetitionTimes (m<>a))
+        pairs = filter (\(x, y) -> not (isNothing x && y == Just "") ) . extractMarks $ ct
+        expandedInt (PreprocessedText a b) = T.length b * repetitionTimes (m<>a)
 
 processPairs :: [(Maybe Marker, Maybe CompressedText)] -> [PreprocessedText]
 processPairs [] = []
@@ -147,9 +151,10 @@ inputIO = do
     file <- TIO.readFile "src\\input9.txt"
     return file
 
-firstAnswer = (sum . map length . processFirstMarks) <$> inputIO
+firstAnswer = sum . map length . processFirstMarks <$> inputIO
 
 --secondAnswer = (sum . map countMultiMark  . parseInput') <$> inputIO
 
 
 myMax a b = (a + b + (abs $ a-b) ) / 2
+
