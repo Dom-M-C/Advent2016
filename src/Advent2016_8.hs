@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Advent2016_8 where 
+module Advent2016_8 where
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -8,11 +8,12 @@ import Data.List
 import Data.Maybe
 import qualified Data.Map as Map
 import Control.Monad
+import Control.Concurrent
 
 type RowInt = Int
 type ColumnInt = Int
 type Position = (RowInt, ColumnInt)
-    
+
 data PixelState = On | Off deriving Eq
 
 instance Show PixelState where
@@ -22,9 +23,9 @@ instance Show PixelState where
 type Pixels = Map.Map Position PixelState
 
 data Rotatable = Column | Row
-data ScreenOperation 
-    = Rectangle Int Int 
-    | RotateColumn RowInt Int 
+data ScreenOperation
+    = Rectangle Int Int
+    | RotateColumn RowInt Int
     | RotateRow ColumnInt Int
     deriving Show
 
@@ -40,7 +41,7 @@ pixelMap = Map.fromList . map (\x -> (x, Off)) $ cartesianprod
         cartesianprod = pure (,) <*> [0..rowLength-1] <*> [0..columnHeight-1]
 
 pixelColumns' :: ColumnInt -> Pixels -> [Pixels]
-pixelColumns' columnSize pix 
+pixelColumns' columnSize pix
     | length pix == 0 = []
     | length pix < columnSize = [pix]
     | otherwise = row : pixelColumns' columnSize rest
@@ -65,7 +66,7 @@ foldPixels = foldr Map.union (Map.singleton (0,0) Off)
 rect :: RowInt -> ColumnInt -> Pixels -> Pixels
 rect 0 _ pix = pix
 rect _ 0 pix = pix
-rect a b pix = 
+rect a b pix =
     let
         onCoords = pure (,) <*> [0..a-1] <*> [0..b-1]
         doUpdate [] screen = screen
@@ -106,7 +107,7 @@ renderScreen :: Pixels -> String
 renderScreen = unlines . renderRows
 
 printScreen :: Pixels -> IO ()
-printScreen = putStrLn . renderScreen 
+printScreen = putStrLn . renderScreen
 
 
 parseOperation :: T.Text -> ScreenOperation
@@ -130,7 +131,7 @@ operations inp = map parseOperation inp
 
 input :: IO [T.Text]
 input = do
-    contents <- TIO.readFile "src\\input8_1.txt"
+    contents <- TIO.readFile "input8_1.txt"
     return . T.lines $ contents
 
 operationsIO :: IO [ScreenOperation]
@@ -141,11 +142,15 @@ foldOps [] p = p
 foldOps (o:ops) p = foldOps ops (executeOperation o p)
 
 foldOpsAnimate :: [ScreenOperation] -> Pixels -> IO (Pixels)
-foldOpsAnimate [] p = printScreen p >> return p
-foldOpsAnimate (o:ops) p = printScreen p
+foldOpsAnimate [] p = clear >> printScreen p >> return p
+foldOpsAnimate (o:ops) p = clear
+    >>  printScreen p
+    >>  threadDelay 90000
     >>  (foldOpsAnimate ops (executeOperation o p))
 
 firstAnswer = Map.size <$> ((foldOps <$> operationsIO <*> return pixelMap) >>= (\pix -> return $ Map.filter (\y -> y == On) pix))
 secondAnswer = (foldOps <$> operationsIO <*> return pixelMap) >>= (\pix -> printScreen pix)
 
 animateOperations = foldOpsAnimate <$> operationsIO >>= (\y -> y pixelMap) >> return ()
+
+clear = putStr "\ESC[2J"
