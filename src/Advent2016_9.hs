@@ -41,8 +41,10 @@ data PreprocessedText = PreprocessedText
     }
 
 instance Show PreprocessedText where
-    show (PreprocessedText m ct) = mconcat [show m, " ", T.unpack ct]
+    show (PreprocessedText m ct) = mconcat [show m, " ", show ct]
     show (Straggler s) = show s
+    show (MultiMark ms ct) = mconcat [show ms, ": ", show ct]
+    show (TestMulti pp) = mconcat $ map show pp
 
 readText :: Read a => T.Text -> a
 readText = read . T.unpack
@@ -77,7 +79,35 @@ parseInput' txt
         this m = T.take (dataLength m) rest
         (straggles, mark) = T.breakOn "(" lead
 
+recurseInput [] = []
+recurseInput (s@(Straggler strag) : xs) = s : recurseInput xs
+recurseInput (PreprocessedText m ct:xs) = case parseInput' ct of
+    ((PreprocessedText mi cti):[]) -> recurseInput ((PreprocessedText (m<>mi) cti) : xs)
+    ((PreprocessedText mi cti):ys) -> recurseInput ((PreprocessedText (m<>mi) cti) : ys <> xs)
+    (Straggler strag:[])           -> recurseInput ((PreprocessedText m strag) : xs)
+    (Straggler strag:ys)           -> recurseInput ((PreprocessedText m strag) : ys <> xs)
+
+parseRecurse = (recurseInput . parseInput')
+
+--extractMultis :: PreprocessedText -> PreprocessedText
+extractMultis (s@(Straggler _), []) = (s, [])
+extractMultis ((PreprocessedText m ct), (x:xs)) = case parseInput' ct of
+    ((PreprocessedText mi cti):[]) -> ( (PreprocessedText (m<>mi) cti), [])
+    (Straggler strag:[]) -> ((PreprocessedText m strag), [])
+    ((PreprocessedText mi cti):xs) -> extractMultis ((PreprocessedText (m<>mi) cti), xs)
+
+
+ --   ((PreprocessedText m ct):xs) -> extractMultis (MultiMark [m] ct)
+
+
+combinePreText :: PreprocessedText -> PreprocessedText -> PreprocessedText
+combinePreText (PreprocessedText m "") (MultiMark ms "") = MultiMark (m:ms) ""
+combinePreText (PreprocessedText m ct) (MultiMark ms "") = MultiMark (m:ms) ct
+combinePreText (PreprocessedText m1 "") (PreprocessedText m2 "") = MultiMark (m1:m2:[]) ""
+combinePreText (PreprocessedText m1 "") (PreprocessedText m2 ct2) = PreprocessedText (m1 <> m2) ct2
+
 countMultiMark :: PreprocessedText -> Int
+countMultiMark (TestMulti ps) = sum . map countMultiMark $ ps
 countMultiMark (Straggler ct) = T.length ct
 countMultiMark (PreprocessedText m ct) = sum . map expandedInt . processPairs $ pairs -- zip marks txt --(PreprocessedText m ct) = marks
     where
@@ -171,3 +201,6 @@ inputIO = do
 firstAnswer = (sum . map length . processFirstMarks) <$> inputIO
 
 --secondAnswer = (sum . map countMultiMark  . parseInput') <$> inputIO
+
+
+myMax a b = (a + b + (abs $ a-b) ) / 2
