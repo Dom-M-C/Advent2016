@@ -34,6 +34,11 @@ data PreprocessedText = PreprocessedText
     {   markers :: [Marker]
     ,   compressedText :: CompressedText
     }
+    | MultiMarker
+    {   marker :: Marker
+    ,   nestedMarkers :: [PreprocessedText]
+    ,   compressedText :: CompressedText
+    }
 
 instance Show PreprocessedText where
     show (PreprocessedText m ct) = mconcat [show m, " ", T.unpack ct]
@@ -101,6 +106,8 @@ expandFirstMark (PreprocessedText mark txt) = expandedText txt <> leftoverText t
 processFirstMarks :: T.Text -> [DecompressedString]
 processFirstMarks = map expandFirstMark . parseInput
 
+extractAllMarks :: CompressedText -> [[CompressedText]]
+extractAllMarks ct = map (T.splitOn ")") . T.splitOn "(" $ ct
 extractMarks :: CompressedText -> [(Maybe Marker, Maybe T.Text)]
 extractMarks ct = map (\x -> if T.isInfixOf "x" x
     then (Just (parseMarker x), Nothing)
@@ -108,23 +115,26 @@ extractMarks ct = map (\x -> if T.isInfixOf "x" x
     where
         marks = map (T.splitOn ")") . T.splitOn "(" $ ct
 
-{-processMarks :: PreprocessedText -> PreprocessedText
-processToMulti (PreprocessedText m ct)  = undefined --(MultiMark marks remainingTxt)
+extractMarks ::  CompressedText -> [(Marker, CompressedText)]
+extractMarks txt = zip marks txts
     where
-        eles =
--}
+        base = extractAllMarks $ txt
+        marks = map parseMarker . map head $ base
+        txts = map last base
 
+collapsePreProcessed :: [PreprocessedText] -> [PreprocessedText]
+collapsePreProcessed [] = []
 tokenList (PreprocessedText m ct) = mconcat . map (T.splitOn ")") . T.splitOn "(" $ ct
-
-{-multiPair (processed, (x:[])) = (processed, x)
-multiPair (processed, eles) = do
-    e <- eles
-    if T.isInfixOf "x" e
-    then return (MultiMark (parseMarker e) ""):processed, d)
-    else return (processed, e)
-
-
--}
+--makeMultiMarks :: [(Marker, CompressedText)] -> PreprocessedText -> [PreprocessedText]
+makeMultiMarks [] _ = []
+makeMultiMarks ls@((m, ct):ms) current
+    -- | parseMarker == mempty = undefined --makeMultiMarks ms
+    | otherwise = undefined --PreprocessedText (m) (take (dataLength m) ct) :
+    where
+        txt = (snd . mconcat) ls
+collapsePreProcessed (PreprocessedText m1 t1 : pts) = PreprocessedText m1 t1
+    : collapsePreProcessed pts
+postCollapsedPreProcess = map (collapsePreProcessed .  preProcessText)  . parseInput
 
 pushMark :: PreprocessedText ->
 
