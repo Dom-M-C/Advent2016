@@ -76,8 +76,9 @@ parseInput' txt
         this m = T.take (dataLength m) rest
         (straggles, mark) = T.breakOn "(" lead
 
+recurseInput :: [PreprocessedText] -> [PreprocessedText]
 recurseInput [] = []
-recurseInput (s@(Straggler strag) : xs) = s : recurseInput xs
+recurseInput (s@(Straggler strag) : xs) = s : xs 
 recurseInput (PreprocessedText m ct:xs) = case parseInput' ct of
     [PreprocessedText mi cti]   -> recurseInput (PreprocessedText (m<>mi) cti : xs)
     PreprocessedText mi cti:ys  -> recurseInput (PreprocessedText (m<>mi) cti : ys <> xs)
@@ -86,6 +87,7 @@ recurseInput (PreprocessedText m ct:xs) = case parseInput' ct of
     where
         updateMarks ctw = undefined
 
+parseRecurse :: T.Text -> [PreprocessedText]
 parseRecurse = recurseInput . parseInput'
 
 --extractMultis :: PreprocessedText -> PreprocessedText
@@ -145,6 +147,22 @@ testInput = "(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN"
 
 testInput' :: T.Text
 testInput' = "(27x12)(20x12)(13x14)(7x10)(1x12)A"
+
+
+parseSingle :: CompressedText -> [CompressedText]
+parseSingle "" = []
+parseSingle txt 
+    | T.head txt == '(' = lead : parseSingle rest
+    | otherwise = undefined --(PreprocessedText lead rest, rest)
+    where
+        (lead, rest) = (\(x,y) -> (T.drop 1 x, T.drop 1 y)) . T.breakOn  ")" $ txt
+        marker = parseMarker lead
+        this m = T.take (dataLength m) rest
+        (straggles, mark) = T.breakOn "(" lead
+
+applyMark :: PreprocessedText -> PreprocessedText
+applyMark (PreprocessedText m ct) = undefined
+
 
 inputIO :: IO T.Text
 inputIO = do
