@@ -6,6 +6,7 @@ import Advent2016_2_2
 import Advent2016_3
 import Advent2016_4
 import Advent2016_5
+import ConvertToJsonPaths
 
 main :: IO ()
 main = do
