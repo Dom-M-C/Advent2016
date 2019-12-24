@@ -10,22 +10,29 @@ piiJson :: IO JsonPaths
 piiJson = do
     let json = TIO.readFile "c:\\tmp\\pii.json"
     jsonLines <- tokenLines <$> json
-    return $ parsePaths jsonLines (Jp "$" [])
+    return $ parsePaths jsonLines mempty
 
 data JsonPaths = Jp 
     {   currentPath :: T.Text
     ,   piiPaths :: [T.Text]
+    ,   isInArrayBlock :: Bool
     }
 
 instance Show JsonPaths where
-    show (Jp current []) = show ("Final path: " <> current)
-    show (Jp current (p:aths)) = show p <> "\n" <> show (Jp current aths)
+    show (Jp current [] _) = show ("Final path: " <> current)
+    show (Jp current (p:aths) _) = show p <> "\n" <> show (Jp current aths False)
+
+instance Semigroup JsonPaths where
+    (<>) (Jp _ ps1 _) (Jp _ ps2 _) = Jp "$" (ps1 <> ps2) False
+
+instance Monoid JsonPaths where
+    mempty = Jp "$" [] False
 
 type JsonLine = T.Text
 
 lineContainsToken :: JsonLine -> Bool
 lineContainsToken line = any (\x -> T.isInfixOf x line) lineToken
-    where lineToken = ["<--", "{", "}", "[", "<~~"]
+    where lineToken = ["<--", "{", "}", "[", "]", "<~~"]
 
 tokenLines :: T.Text -> [JsonLine]
 tokenLines = filter lineContainsToken . T.lines
@@ -35,17 +42,19 @@ parsePaths [] jsonPaths = jsonPaths
 parsePaths (line:xs) jsonPaths = parsePaths xs $ processLineToPaths line jsonPaths
 
 processLineToPaths :: JsonLine -> JsonPaths -> JsonPaths
-processLineToPaths line (Jp current paths)
-    | T.isInfixOf "<~~" line = Jp "$" paths
-    | T.isInfixOf "<--" line = Jp current (newPath : paths)
-    | T.isInfixOf "{" line = Jp newPath paths
-    | T.isInfixOf "}" line = Jp (dropJsonLevel current) paths
-    | T.isInfixOf "[" line = Jp (newPath <> "[*]") paths
+processLineToPaths line jp@(Jp current paths inArray)
+    | T.isInfixOf "<~~" line = Jp "$" paths False
+    | T.isInfixOf "<--" line = Jp current (newPath : paths) inArray
+    | T.isInfixOf "[" line = Jp (newPath <> "[*]") paths True
+    | T.isInfixOf "]" line = Jp current paths False
+    | T.isInfixOf "{" line = Jp newPath paths inArray
+    | T.isInfixOf "}" line = Jp (dropJsonLevel current) paths inArray
     where
         jsonName = getJsonName line
-        newPath = if jsonName /= ""
-            then T.concat [current, ".", jsonName]
-            else current
+        newPath = if jsonName == "" 
+            then current
+            else T.concat [current, ".", jsonName]
+
 
 getJsonName :: T.Text -> T.Text
 getJsonName line
