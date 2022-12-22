@@ -56,38 +56,15 @@ processLineToPaths line jp@(Jp current paths inArray)
             else T.concat [current, ".", jsonName]
 
 
-getJsonName :: T.Text -> T.Text
+getJsonName :: JsonLine -> JsonLine
 getJsonName line
     | snd colonBreak == "" = ""
     | otherwise = T.strip . T.replace "\"" "" . fst $ colonBreak
     where 
         colonBreak = T.breakOn ":" line
 
-
-dropJsonLevel = T.drop 1 . T.reverse . snd . T.breakOn "." . T.reverse
-
-applicant_DataStoredEvent :: T.Text
-applicant_DataStoredEvent = 
-    "{  \
-    \ \n  \"JourneyId\": \"a68ed7fb-b8c3-4b80-bd4c-c9d2971b1003\", \
-    \ \n  \"SubjectId\": \"1cded55e-02e3-418d-b61c-f39ba8e6dc77\", \
-    \ \n  \"Type\": \"Applicant\", \
-    \ \n  \"Status\": \"DataRetrieved\", \
-    \ \n  \"Data\": { \
-    \ \n    \"firstName\": \"Dominic\", <-- PII \
-    \ \n    \"lastName\": \"Schnitzel\", <-- PII \
-    \ \n    \"dateOfBirth\": \"1990-01-01T00:00:00Z\",<-- PII \
-    \ \n    \"emailAddress\": \"dom@schnitzel.com\",<-- PII \
-    \ \n    \"mobilePhoneNumber\": \"\",<-- PII \
-    \ \n    \"homePhoneNumber\": \"\",<-- PII \
-    \ \n    \"dependants\": null, \
-    \ \n    \"housingContribution\": null, \
-    \ \n    \"currentAddress\": { \
-    \ \n      \"residentialStatus\": \"Homeowner\", \
-    \ \n      \"postcode\": \"NG15FW\", <-- PII \
-    \ \n      \"movedInAt\": \"2014-11-11T00:00:00Z\" \
-    \ \n    }, \
-    \ \n    \"previousAddress\": null <-- Possible PII \
-    \ \n  }, \
-    \ \n  \"TimeStamp\": \"2019-11-11T12:55:45.5578816Z\" \
-    \ \n}"
+dropJsonLevel :: T.Text -> T.Text
+dropJsonLevel t
+    | extractLowerPath ".." t /= "" = (T.drop 2 . T.reverse . extractLowerPath "..") t
+    | otherwise = (T.drop 1 . T.reverse . extractLowerPath ".") t
+    where extractLowerPath delimit = (snd . T.breakOn delimit . T.reverse) 
